@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Thomas Jeu | Portfolio</title>
+    <title>Thomas Jeu | Web Developer</title>
     <meta name="description" content="Hello There !! I'm Thomas JEU, a web developer, designer and filmmaker. And here you can discover myself and my differents projects. Enjoy !!">
 
     <meta itemprop="name" content="Thomas JEU | Web developer - Designer - Audiovisuel">
@@ -27,48 +27,341 @@
     <link rel="shortcut icon" type="image/png" href="/static/logoTJ.svg"/>
     <script src="https://kit.fontawesome.com/504485e57a.js" crossorigin="anonymous"></script>
 
+    <!-- Adobe Font-->
+    <link rel="stylesheet" href="https://use.typekit.net/hih1kgw.css">
+
     <!-- Google-Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://use.typekit.net/hih1kgw.css">
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-HK412YV27C"></script>
-    <script data-ad-client="ca-pub-2122700879562001" async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<!--    <script async src="https://www.googletagmanager.com/gtag/js?id=G-HK412YV27C"></script>
+    <script data-ad-client="ca-pub-2122700879562001" async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>-->
 
     <!-- Lib Axios pour Ajax -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.1.3/TweenMax.min.js" integrity="sha256-lPE3wjN2a7ABWHbGz7+MKBJaykyzqCbU96BJWjio86U=" crossorigin="anonymous"></script></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.1.3/TweenMax.min.js" integrity="sha256-lPE3wjN2a7ABWHbGz7+MKBJaykyzqCbU96BJWjio86U=" crossorigin="anonymous"></script>
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/kursor/dist/kursor.css">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/2.0.2/anime.min.js"></script>
+    <script src="node_modules/hover-effect/dist/hover-effect.umd.js"></script>
   </head>
   <body>
+<!--    THREE JS-->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/88/three.min.js"></script>
+  <script id="vertexShader" type="x-shader/x-vertex">
+      void main() {
+          gl_Position = vec4( position, 1.0 );
+      }
+  </script>
+  <script id="fragmentShader" type="x-shader/x-fragment">
+    uniform vec2 u_resolution;
+    uniform vec2 u_mouse;
+    uniform float u_time;
+    uniform sampler2D u_noise;
+    uniform sampler2D u_environment;
+
+    vec2 movement;
+    float scale = 5.;
+
+    vec2 hash2(vec2 p)
+    {
+      vec2 o = texture2D( u_noise, (p+0.5)/256.0, -100.0 ).xy;
+      return o;
+    }
+
+    void grid(vec2 uv, inout vec3 colour, vec3 gridcolour, vec2 size, float linewidth) {
+      vec2 grid = (fract(uv/size+.5)-.5)*size;
+      grid = abs(grid);
+      float gridlines = smoothstep(linewidth, linewidth + 0.005, min(grid.x, grid.y));
+      colour = mix(gridcolour, colour, gridlines);
+    }
+
+    float voronoi(vec2 uv, inout vec2 n_point, inout vec2 s_n_point, inout float s_dist) {
+
+      float dist = 1.;
+      s_dist = 1.;
+      float s_result = 0.;
+
+      vec2 grid_id = floor(uv);
+      vec2 grid_uv = fract(uv);
+
+      float exponent = clamp(abs(u_mouse.y * 1.), 7., 50.);
+      float result = 0.;
+
+      for(float j = -1.; j < 2.; j++) {
+        for(float i = -1.; i < 2.; i++) {
+          vec2 offset = vec2(i, j);
+          vec2 grid_test_id = grid_id + offset;
+          vec2 rand = hash2(grid_test_id);
+          vec2 point_pos = offset + rand - grid_uv;
+
+          // The following adds some random animation to the particles
+          rand = hash2(grid_test_id + 1000.);
+          rand = 0.5 + 0.4*sin((u_time) + 6.2831*rand);
+          point_pos = offset + rand - grid_uv;
+
+          // float len = length(point_pos); // the length gives us a more euclidian (conic) length
+          float len = dot(point_pos, point_pos); // The float gives us a more rounded distance
+          // float len = abs(point_pos.x)+abs(point_pos.y); // manhatten distance
+          result += exp( -exponent*len ); // To soften the effect, use this. You'll also need to return the log result, commented out below
+
+          if(len < dist) {
+            s_dist = dist;
+            dist = len;
+            s_n_point = n_point;
+            n_point = point_pos;
+          } else if (len < s_dist) {
+            s_dist = len;
+            s_n_point = point_pos;
+          }
+        }
+      }
+
+      return -(1.0/exponent)*log( result );
+
+      return dist;
+    }
+  //   Naive environment mapping. Pass the reflected vector and pull back the texture position for that ray.
+    vec3 envMap(vec3 rd, vec3 sn){
+
+        rd.xy -= u_time*.2; // This just sort of compensates for the camera movement
+        // rd.xy -= movement;
+        rd /= scale; // scale the whole thing down a but from the scaled UVs
+
+        vec3 col = texture2D(u_environment, rd.xy - .5, 5.).rgb;
+        col *= normalize(col);
+        // col *= vec3(1., 1., 1.2);
+        // vec3 col = vec3(hash2(rd.xy).y * .5 + .5);
+
+        return col;
+
+    }
+
+
+    float bumpMap(vec2 uv, inout vec2 q, inout vec2 r, inout float s_dist) {
+
+      float vor = voronoi(uv, q, r, s_dist);
+
+      // return dot(r, r);
+      // return s_dist * vor;
+
+      return abs(vor - 1.) * ((u_mouse.x + .5) * 1. + 1.);
+    }
+
+    vec4 renderPass(vec2 uv, vec2 uvoffset) {
+      vec3 surfacePos = vec3(uv, 0.0);
+      vec3 ray = normalize(vec3(uv - movement, 1.));
+      // vec3 lightPos = vec3(cos(u_time / 2.) * 2., sin(u_time / 2.) * 2., -3.);
+      vec3 lightPos = vec3(0., 0., -3.) + vec3(movement, 0.);
+      vec3 normal = vec3(0., 0., -1);
+
+      vec2 sampleDistance = vec2(1. / u_resolution.x, 0.);
+
+      vec2 q = vec2(0.,0.);
+      vec2 r = vec2(0.,0.);
+      float s_dist = 1.;
+
+      float fx = bumpMap(surfacePos.xy-sampleDistance.xy + uvoffset, q, r, s_dist);
+      float fy = bumpMap(surfacePos.xy-sampleDistance.yx + uvoffset, q, r, s_dist);
+      s_dist = 1.;
+      float f = bumpMap(surfacePos.xy + uvoffset, q, r, s_dist);
+      fx = (fx-f)/sampleDistance.x;
+      fy = (fy-f)/sampleDistance.x;
+      normal = normalize( normal + vec3(fx, fy, 0) * 0.2 );
+
+      vec3 lightV = lightPos - surfacePos;
+      float lightDist = max(length(lightV), 0.001);
+      lightV /= lightDist;
+
+      vec3 lightColour = vec3(.8, .8, 1.);
+
+      float shininess = 5.;
+      float brightness = 4.;
+      float roughness = 20.;
+
+      float falloff = 0.6;
+      float attenuation = 1./(1.0 + lightDist*lightDist*falloff);
+
+      float diffuse = max(dot(normal, lightV), 0.);
+      float specular = pow(max(dot( reflect(-lightV, normal), -ray), 0.), 5.) * shininess;
+      // specular *= sqrt(roughness);
+
+      vec2 _q = abs(normalize(q));
+
+      // vec3 tex = texture2D(u_environment, (reflect(vec3(uv, -1.), normal)).xy ).rgb;
+      vec3 reflect_ray = reflect(vec3(uv - movement, 1.), normal * 1.);
+      // The reflect ray is the ray wwe use to determine the reflection.
+      // We use the UV less the movement (to account for "environment") to the surface normal
+      vec3 tex = envMap(reflect_ray, normal); // Fake environment mapping.
+
+      // vec3 texCol = (vec3(s_dist, f, .5)) * brightness;
+      vec3 texCol = tex * brightness;
+
+      vec3 colour = (texCol * (diffuse*vec3(1, .97, .92)*2. + 0.5) + lightColour*specular * f * 2.)*attenuation*1.5;
+      // colour += texCol * .2;
+
+      return vec4(colour, 1.);
+    }
+
+    void main() {
+      vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / min(u_resolution.y, u_resolution.x);
+
+      uv *= scale;
+      movement = vec2(u_time, 0.);
+      uv += movement;
+
+      // vec4 render = renderPass(uv, vec2(cos(u_time), sin(u_time)));
+      vec4 render = renderPass(uv, vec2(0.));
+
+
+
+      // grid(uv, colour, vec3(1.), vec2(1.), .005);
+
+      gl_FragColor = render;
+    }
+  </script>
+  <div id="container" touch-action="none"></div>
+  <script type="module">
+    let container;
+    let camera, scene, renderer;
+    let uniforms;
+
+    let loader=new THREE.TextureLoader();
+    let texture, environment;
+    loader.setCrossOrigin("anonymous");
+    loader.load(
+      'static/img/ThomasJeu.png',
+      function texture_load(tex) {
+        texture = tex;
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.minFilter = THREE.LinearFilter;
+        loader.load(
+          'static/img/texturetxt.png',
+          function environment_load(tex) {
+            environment = tex;
+            environment.wrapS = THREE.RepeatWrapping;
+            environment.wrapT = THREE.RepeatWrapping;
+            environment.minFilter = THREE.LinearFilter;
+            init();
+            animate();
+          }
+        );
+      }
+    );
+
+    function init() {
+      container = document.getElementById( 'container' );
+
+      camera = new THREE.Camera();
+      camera.position.z = 1;
+
+      scene = new THREE.Scene();
+
+      var geometry = new THREE.PlaneBufferGeometry( 2, 2 );
+
+      uniforms = {
+        u_time: { type: "f", value: 1.0 },
+        u_resolution: { type: "v2", value: new THREE.Vector2() },
+        u_noise: { type: "t", value: texture },
+        u_environment: { type: "t", value: environment },
+        u_mouse: { type: "v2", value: new THREE.Vector2() }
+      };
+
+      var material = new THREE.ShaderMaterial( {
+        uniforms: uniforms,
+        vertexShader: document.getElementById( 'vertexShader' ).textContent,
+        fragmentShader: document.getElementById( 'fragmentShader' ).textContent
+      } );
+      material.extensions.derivatives = true;
+
+      var mesh = new THREE.Mesh( geometry, material );
+      scene.add( mesh );
+
+      renderer = new THREE.WebGLRenderer();
+      renderer.setPixelRatio( 1 );
+
+      container.appendChild( renderer.domElement );
+
+      onWindowResize();
+      window.addEventListener( 'resize', onWindowResize, false );
+
+      document.addEventListener('pointermove', (e)=> {
+        let ratio = window.innerHeight / window.innerWidth;
+        uniforms.u_mouse.value.x = (e.pageX - window.innerWidth / 2) / window.innerWidth / ratio;
+        uniforms.u_mouse.value.y = (e.pageY - window.innerHeight / 2) / window.innerHeight / ratio;
+
+        e.preventDefault();
+      });
+    }
+
+    function onWindowResize( event ) {
+      renderer.setSize( window.innerWidth, window.innerHeight );
+      uniforms.u_resolution.value.x = renderer.domElement.width;
+      uniforms.u_resolution.value.y = renderer.domElement.height;
+    }
+
+    function animate() {
+      requestAnimationFrame( animate );
+      render();
+    }
+
+    function render() {
+      uniforms.u_time.value += 0.01;
+      renderer.render( scene, camera );
+    }
+  </script>
+
+
+<style>
+  #container, canvas{
+    opacity: 0.5;
+    z-index: -3;
+    width: 100vw;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    touch-action: none;
+    transform: scale(1);
+  }
+</style>
+
+<!--Fin ThreeJS-->
+
     <div class="loader">
-    <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="226" height="226" viewBox="0 0 226 226">
-      <defs>
-        <radialGradient id="radial-gradient" cx="0.77" cy="0.059" r="1.018" gradientTransform="matrix(-0.548, 0.837, -0.863, -0.565, 1.242, -0.552)" gradientUnits="objectBoundingBox">
-          <stop offset="0" stop-color="#79483c"/>
-          <stop offset="1" stop-color="#333"/>
-        </radialGradient>
-      </defs>
-      <circle id="boulle" data-name="Ellipse 1" cx="77.5" cy="77.5" r="77.5" transform="translate(35 35)" fill="url(#radial-gradient)"/>
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="226" height="226" viewBox="0 0 226 226">
+        <defs>
+          <radialGradient id="radial-gradient" cx="0.77" cy="0.059" r="1.018" gradientTransform="matrix(-0.548, 0.837, -0.863, -0.565, 1.242, -0.552)" gradientUnits="objectBoundingBox">
+            <stop offset="0" stop-color="#79483c"/>
+            <stop offset="1" stop-color="#333"/>
+          </radialGradient>
+        </defs>
+        <circle id="boulle" data-name="Ellipse 1" cx="77.5" cy="77.5" r="77.5" transform="translate(35 35)" fill="url(#radial-gradient)"/>
 
-    </svg>
-    <svg id="grille" xmlns="http://www.w3.org/2000/svg" width="1759.76" height="1272.615" viewBox="0 0 1759.76 1272.615">
-      <path id="Tracé_1" data-name="Tracé 1" d="M81.12-99.71V1166.1" transform="translate(-80.62 106.515)" fill="none" stroke="#4ae6f2" stroke-width="1"/>
-      <path id="Tracé_2" data-name="Tracé 2" d="M81.12-99.71V1166.1" transform="translate(1678.14 99.71)" fill="none" stroke="#4ae6f2" stroke-width="1"/>
-      <path id="Tracé_3" data-name="Tracé 3" d="M81.12-99.71V1166.1" transform="translate(1460.14 99.71)" fill="none" stroke="#4ae6f2" stroke-width="1"/>
-      <path id="Tracé_4" data-name="Tracé 4" d="M81.12-99.71V1166.1" transform="translate(1242.14 99.71)" fill="none" stroke="#4ae6f2" stroke-width="1"/>
-      <path id="Tracé_5" data-name="Tracé 5" d="M81.12-99.71V1166.1" transform="translate(876.26 99.71)" fill="none" stroke="#4ae6f2" stroke-width="1"/>
-      <path id="Tracé_6" data-name="Tracé 6" d="M81.12-99.71V1166.1" transform="translate(721.26 99.71)" fill="none" stroke="#4ae6f2" stroke-width="1"/>
-      <path id="Tracé_7" data-name="Tracé 7" d="M81.12-99.71V1166.1" transform="translate(355.38 99.71)" fill="none" stroke="#4ae6f2" stroke-width="1"/>
-      <path id="Tracé_8" data-name="Tracé 8" d="M81.12-99.71V1166.1" transform="translate(137.38 99.71)" fill="none" stroke="#4ae6f2" stroke-width="1"/>
-    </svg>
-    <p>Loading...</p>
+      </svg>
+      <svg id="grille" xmlns="http://www.w3.org/2000/svg" width="1759.76" height="1272.615" viewBox="0 0 1759.76 1272.615">
+        <path id="Tracé_1" data-name="Tracé 1" d="M81.12-99.71V1166.1" transform="translate(-80.62 106.515)" fill="none" stroke="#4ae6f2" stroke-width="1"/>
+        <path id="Tracé_2" data-name="Tracé 2" d="M81.12-99.71V1166.1" transform="translate(1678.14 99.71)" fill="none" stroke="#4ae6f2" stroke-width="1"/>
+        <path id="Tracé_3" data-name="Tracé 3" d="M81.12-99.71V1166.1" transform="translate(1460.14 99.71)" fill="none" stroke="#4ae6f2" stroke-width="1"/>
+        <path id="Tracé_4" data-name="Tracé 4" d="M81.12-99.71V1166.1" transform="translate(1242.14 99.71)" fill="none" stroke="#4ae6f2" stroke-width="1"/>
+        <path id="Tracé_5" data-name="Tracé 5" d="M81.12-99.71V1166.1" transform="translate(876.26 99.71)" fill="none" stroke="#4ae6f2" stroke-width="1"/>
+        <path id="Tracé_6" data-name="Tracé 6" d="M81.12-99.71V1166.1" transform="translate(721.26 99.71)" fill="none" stroke="#4ae6f2" stroke-width="1"/>
+        <path id="Tracé_7" data-name="Tracé 7" d="M81.12-99.71V1166.1" transform="translate(355.38 99.71)" fill="none" stroke="#4ae6f2" stroke-width="1"/>
+        <path id="Tracé_8" data-name="Tracé 8" d="M81.12-99.71V1166.1" transform="translate(137.38 99.71)" fill="none" stroke="#4ae6f2" stroke-width="1"/>
+      </svg>
+      <p>Loading...</p>
+    </div>
 
-  </div>
     <div id="app"></div>
-    <div class="bg"></div>
+
+    <div class="bg" id="bg"></div>
+    <div class="bgGradient" id="bgGradient"></div>
+
+<!--style loader-->
     <style>
       .loader{
         z-index: 1000;
@@ -83,7 +376,7 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        /*transition: opacity 2s ease-out;*/
+        transition: opacity 1s ease-out;
       }
       #grille{
         position: absolute;
@@ -108,7 +401,8 @@
         transition: opacity 2s ease-out;
       }
     </style>
-<!--    Sourie custom-->
+
+<!--Sourie custom-->
     <script src="https://cdn.jsdelivr.net/npm/kursor@0.0.14/dist/kursor.js"></script>
     <script>
       new kursor({
@@ -117,7 +411,8 @@
         color: "#fefefe"
       })
     </script>
-<!--    Loader animation-->
+
+<!--Loader animation-->
     <script>
       const loader = document.querySelector('.loader');
       function sleep(ms) {
@@ -131,6 +426,7 @@
       AOS.init();
     </script>
 
+<!--Style global-->
     <style>
       *{
         margin: 0;
@@ -140,7 +436,6 @@
         --orange_alpha: rgba(253, 85, 48, 0);
         --beige: #EEEAE0;
       }
-
       @font-face {
         font-family: 'Misto';
         src: url('static/fonts/Misto.eot');
@@ -165,7 +460,7 @@
         height: 8px;
       }
       ::-webkit-scrollbar-thumb{
-        background: #634b41;
+        background: #fd5530;
         border-radius: 10px;
       }
 
@@ -181,7 +476,6 @@
         align-items: center;
         justify-content: center;
         scroll-behavior: smooth;
-        cursor: none;
       }
       body{
         width: 100vw;
@@ -190,7 +484,7 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        background-color: #222426;
+        background: #333333;
       }
       img{
         mix-blend-mode: normal;
@@ -203,13 +497,17 @@
       a:hover{
         color: #fd5530;
       }
+      #app{
+        width: 100vw;
+        height: 100vh;
+      }
       header{
         height: 100vh;
         width: 100%;
         position: relative;
         top: 0;
         z-index: 90;
-        padding: 150px;
+        padding: 150px 150px 50px 150px;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -243,7 +541,10 @@
       h1{
         color: var(--orange);
         font-family: Stretch;
-        /*font-family: eckmannpsych-small;*/
+        /*font-family: dystopian,sans-serif;
+        font-weight: 900;
+        font-style: normal;*/
+
         font-size: var(--h1-size);
         background: url(static/img/texturetxt.png) no-repeat center center;
         background-size: cover;
@@ -251,26 +552,22 @@
         -webkit-background-clip: text;
         -moz-background-clip:text;
         background-clip:text;
+        opacity: 1;
         filter: saturate(1.2);
       }
 
-      .circle{
-        width: 200px;
-        height: 200px;
-        border-radius: 100%;
-        border: 1px solid var(--orange);
-        position: absolute;
-        top: -100px;
-        right: 0;
-      }
       .pp{
+        background-image: url("static/img/ThomasJeu.png");
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-position: center;
         position: absolute;
         top: 0;
         right: 250px;
         z-index: 50;
         height: 620px;
         width: 364px;
-        box-shadow: 3px 3px 30px rgba(0,0,0,0.3);
+        filter: drop-shadow(3px 3px 30px rgba(0,0,0,0.3));
       }
       main{
         height: auto;
@@ -305,7 +602,7 @@
         width: 100vw;
         z-index: -1;
         position: absolute;
-        top: 150px;
+        top: 45px;
         /* pour rotate on enlève le translate et on rajoute le rotate */
         /* transform:  rotate(90deg); */
       }
@@ -327,8 +624,6 @@
           transform: translate(-100%, 0);
         }
       }
-
-
 
       h2{
         color: var(--orange);
@@ -376,6 +671,9 @@
       .wrappers{
         width: 100%;
         height: 100%;
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
         box-shadow: 3px 3px 30px rgba(0,0,0,0.3);
       }
       .haut-projet{
@@ -397,6 +695,7 @@
         justify-content: flex-end;
         border-right: 1px var(--beige);
         backdrop-filter: blur(6px);
+        box-shadow: 3px 3px 30px rgba(0,0,0,0.3);
       }
       .projects_title{
         font-family: Stretch;
@@ -413,7 +712,7 @@
       .projects_date{
         font-family: LBA;
         font-size: 20px;
-        color: grey;
+        color: #acacac;
       }
       .projects_tools{
         font-size: 14px;
@@ -442,11 +741,23 @@
         height: 100vh;
         top: 0;
         left: 0;
+        opacity: 0;
         z-index: -1;
-        background-image: url("static/img/bg2.png");
+        background-image: url("static/img/bg1.png");
         background-repeat: no-repeat;
         background-position: center;
         background-size: cover;
+        transition: 1s ease-in-out;
+      }
+      .bgGradient{
+        position: fixed;
+        width: 100vw;
+        height: 100vh;
+        top: 0;
+        left: 0;
+        opacity: 1;
+        z-index: -10;
+        background: linear-gradient(45deg ,#79483c, #333333);
       }
       .sections_bas{
         display: flex;
@@ -494,7 +805,7 @@
         margin-bottom: 40px;
         padding-top: 40px;
       }
-      bleu{
+      footer > p > span{
         color: var(--beige);
       }
       b{
@@ -581,22 +892,13 @@
         color: #fd5530;
         transform: translateY(7px);
       }
-      .cursor{
-        display: none;
-        z-index: 2000;
-        pointer-events: none;
-        position: fixed;
-        padding: 0.3rem;
-        background-color: #fff;
-        transform: rotateZ(45deg) scale(1.5) translate(-12px , 5px);
-        mix-blend-mode: difference;
-        transition: transform 0.4s ease-in-out;
-        top: 150%;
-        left: 150%;
-        width: 20px;
-        border: 1px solid white;
-        height: 20px;
-        border-radius: 50%;
+      @media only screen and (max-width: 1430px){
+        html{
+          --h1-size: 70px;
+        }
+        h1{
+          font-size: var(--h1-size);
+        }
       }
       @media only screen and (max-width: 1200px){
         html{
@@ -673,10 +975,7 @@
       }
       @media only screen and (max-width: 875px){
         html{
-          --h1-size: 70px;
-        }
-        .slider_container{
-          margin-bottom: 80px;
+          --h1-size: 50px;
         }
         h1{
           font-size: var(--h1-size);
@@ -781,9 +1080,6 @@
         html{
           --h1-size: 35px;
         }
-        .slider_container{
-          margin-bottom: 60px;
-        }
         h1{
           font-size: var(--h1-size);
         }
@@ -840,5 +1136,30 @@
       }
     </style>
 
+<!--Scroll event-->
+<script>
+  window.addEventListener('scroll',() => {
+    const scrolled = window.scrollY;
+    const value = window.scrollY;
+    title = document.getElementById('h1');
+    h3 = document.getElementById('h3');
+    bg = document.getElementById('bg');
+
+
+    title.style.marginLeft = value * 0.4 + 'px' ;
+    h3.style.marginLeft = value * 0.1 + 'px' ;
+
+    let d;
+    d=new Date();
+
+    if(scrolled >= 400){
+      bg.style.opacity = 1;
+      document.title = 'Thomas Jeu | ' + d.getHours() + ':' + d.getMinutes();
+    }else{
+      bg.style.opacity = 0;
+      document.title = 'Thomas Jeu | Web Developer';
+    }
+  });
+</script>
   </body>
 </html>
