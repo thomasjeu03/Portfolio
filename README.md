@@ -1,6 +1,6 @@
-# frontend_projet_s3
+# Portfolio Thomas JEU
 
-> frontend_vuejs_projet_s3_dpt_mmi
+> Portfolio_Vuejs_V3
 
 ## Build Setup
 
