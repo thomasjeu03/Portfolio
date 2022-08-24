@@ -32,7 +32,7 @@
           <h2>My skkills</h2>
           <br>
           <b>Front-End development</b>
-          <p>HTML - CSS - VueJS - Java Script - BDD - WordPress</p>
+          <p>HTML - CSS - VueJS - Java Script - CodeIgniter 4 environment - WordPress</p>
           <br>
           <b>Web design</b>
           <p>UI - UX - Photoshop - Adobe XD - Illustrator </p>
@@ -43,7 +43,10 @@
         <div class="text-right">
           <h2>My cuursus</h2>
           <br>
-          <b>DUT Métiers du Multimédia et de l'Internet</b>
+          <b><a href="https://www.hetic.net/" target="_blank" rel="noopener">HETIC - Bachelor Web</a></b>
+          <p>2022 - 2023</p>
+          <br>
+          <b><a href="http://mmimontbeliard.com/" target="_blank" rel="noopener">DUT Métiers du Multimédia et de l'Internet</a></b>
           <p>2020 - 2022</p>
           <br>
           <b>Learn by myself</b>

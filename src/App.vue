@@ -8,10 +8,10 @@
           <h1 id="h1">Thoomas Jeuu</h1>
         </div>
 
-        <h3 id="h3">I'm a <b>18 years old</b> guy<br/>
+        <h3 id="h3">I'm a <b>19 years old</b> guy<br/>
           As a creative <b>front-end</b> developer</h3>
       </div>
-      <a id="scrollDown" href="#main">
+      <a id="scrollDown">
         <svg class="scroll_down" xmlns="http://www.w3.org/2000/svg" width="25.12" height="129.193" viewBox="0 0 25.12 129.193">
           <g id="scroll_down" transform="translate(-1794.88 -937)">
             <text id="Scroll_down-2" data-name="Scroll down" transform="translate(1799 1032) rotate(-90)" fill="#EEEAE0" font-size="14" font-family="SpaceMono-Regular, Space Mono"><tspan x="0" y="16">Scroll down</tspan></text>
@@ -20,8 +20,9 @@
         </svg>
       </a>
       <div class="infinity-text">
-        <span class="txt">WEB DEVELOPPMENT - GRAPHIC DESIGNN - AUDIOOVISUAL -&nbsp;</span>
-        <span class="txt">WEB DEVELOPPMENT - GRAPHIC DESIGNN - AUDIOOVISUAL -&nbsp;</span>
+        <span class="txt">WEB DEVELOPPMENT - GRAPHIC DESIGNN -&nbsp;</span>
+        <span class="txt">WEB DEVELOPPMENT - GRAPHIC DESIGNN -&nbsp;</span>
+        <span class="txt">WEB DEVELOPPMENT - GRAPHIC DESIGNN -&nbsp;</span>
       </div>
 
 
